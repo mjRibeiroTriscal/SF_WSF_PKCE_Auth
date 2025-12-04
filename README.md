@@ -1,9 +1,10 @@
-# SF WSF + PKCE Auth (Salesforce)
+# SF WSF + PKCE Auth (Salesforce Authentication)
 
-Pequena PoC em Node.js para autenticação em orgs Salesforce usando:
+Módulo, em Node.js para autenticação em orgs Salesforce usando:
 
 -   OAuth 2.0 Web Server Flow (WSF)
 -   PKCE (Proof Key for Code Exchange)
+-   `client_id`
 -   `client_secret` (confidential client)
 -   Servidor de callback embutido (sem frontend)
 
@@ -106,9 +107,9 @@ Se você rodar novamente o `connect` com o mesmo alias, a conexão é sobrescrit
 ```json
 "scripts": {
   "connect:org": "node src/auth-cli.js connect org",
-  "connect:uat3": "node src/auth-cli.js connect uat3",
-  "connect:prod": "node src/auth-cli.js connect prod",
-  "list:envs": "node src/auth-cli.js list"
+  "connect:sandbox": "node src/auth-cli.js connect sandbox",
+  "list:envs": "node src/auth-cli.js list",
+  "help": "node src/auth-cli.js help"
 }
 ```
 
@@ -135,3 +136,26 @@ Ambientes conectados:
 ```
 
 ---
+
+## Estrutura de pastas (simplificada)
+
+```text
+SF_WSF_PKCE_Auth/
+  ├─ data/
+  │  └─ environments.json       # Conexões salvas localmente
+  ├─ src/
+  │  └─ auth-cli.js             # CLI + servidor de callback + fluxo WSF + PKCE
+  ├─ .gitignore
+  ├─ package.json
+  └─ README.md
+```
+
+---
+
+## Comportamento de sobrescrita
+
+-   Cada conexão é identificada pelo Id passado no comando:
+    -   connect org (**_https://login.salesforce.com_**)
+    -   connect sandbox (**_https://test.salesforce.com_**)
+
+Se um Id já existir em environments.json, o registro é atualizado com os novos tokens/instance_url.
