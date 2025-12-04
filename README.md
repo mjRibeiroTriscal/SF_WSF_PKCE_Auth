@@ -62,11 +62,15 @@ SF_SCOPES=api
 SF_CALLBACK_PORT=1717
 ```
 
+---
+
 Notas:
 
 -   Use https://login.salesforce.com para produção / Developer org.
 -   Use https://test.salesforce.com ou o My Domain da sandbox, se o Connected App estiver em sandbox.
 -   Ajuste a porta/URL se quiser mudar o callback.
+
+---
 
 ## Scripts principais
 
@@ -80,7 +84,7 @@ npm run connect:org
 
 O que acontece:
 
-1. Sobe o callback em `<HOST>:1717/callback`.
+1. Sobe o callback em `<HOST>:<PORT>/callback`.
 2. Imprime uma URL semelhante a:
 
 ```bash
@@ -93,4 +97,17 @@ https://login.salesforce.com/services/oauth2/authorize?response_type=code&client
 
 ```text
 /data/environments.json
+```
+
+Se você rodar novamente o `connect` com o mesmo alias, a conexão é sobrescrita (sempre prevalece a mais recente).
+
+> Dica: você pode criar scripts adicionais no `package.json` para outros aliases, por exemplo:
+
+```json
+"scripts": {
+  "connect:org": "node src/auth-cli.js connect org",
+  "connect:uat3": "node src/auth-cli.js connect uat3",
+  "connect:prod": "node src/auth-cli.js connect prod",
+  "list:envs": "node src/auth-cli.js list"
+}
 ```
