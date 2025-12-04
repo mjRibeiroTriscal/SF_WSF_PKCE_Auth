@@ -47,3 +47,42 @@ Fluxo básico:
 git clone https://github.com/mjRibeiroTriscal/SF_WSF_PKCE_Auth.git
 cd SF_WSF_PKCE_Auth
 npm install
+```
+
+---
+
+## Configuração (.env)
+
+```env
+SF_CLIENT_ID=SEU_CONSUMER_KEY
+SF_CLIENT_SECRET=SEU_CONSUMER_SECRET
+SF_LOGIN_URL=https://login.salesforce.com
+SF_REDIRECT_URI=http://localhost:1717/callback
+SF_SCOPES=api
+SF_CALLBACK_PORT=1717
+```
+
+Notas:
+
+- Use https://login.salesforce.com para produção / Developer org.
+- Use https://test.salesforce.com ou o My Domain da sandbox, se o Connected App estiver em sandbox.
+- Ajuste a porta/URL se quiser mudar o callback.
+
+## Scripts principais
+
+### Conectar uma org
+
+Alias padrão: `org`
+
+```bash
+npm run connect:org
+```
+
+O que acontece:
+
+1. Sobe o callback em `<HOST>:1717/callback`.
+2. Imprime uma URL semelhante a:
+
+```bash
+https://login.salesforce.com/services/oauth2/authorize?response_type=code&client_id=...&redirect_uri=http%3A%2F%2Flocalhost%3A1717%2Fcallback&scope=api&code_challenge=...&code_challenge_method=S256&state=...
+```
