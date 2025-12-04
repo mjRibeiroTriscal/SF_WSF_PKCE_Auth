@@ -111,3 +111,27 @@ Se você rodar novamente o `connect` com o mesmo alias, a conexão é sobrescrit
   "list:envs": "node src/auth-cli.js list"
 }
 ```
+
+---
+
+## Listar ambientes conectados
+
+```cmd
+npm run list:envs
+```
+
+### Exemplo de saída:
+
+```text
+Ambientes conectados:
+---------------------------------------------
+#1
+  alias        : org
+  instance_url : https://meuinstance.my.salesforce.com
+  org_id       : 00DXXXXXXXXXXXXXXX
+  username     : (não informado)
+  connectedAt  : 2025-12-04T12:34:56.789Z
+---------------------------------------------
+```
+
+---
