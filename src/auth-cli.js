@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 require('dotenv').config();
 
 const crypto = require('crypto');
@@ -7,9 +6,11 @@ const path = require('path');
 const express = require('express');
 const axios = require('axios');
 
+
 // ----------------------------------------------------
 // CONFIGURAÇÃO
 // ----------------------------------------------------
+
 const args = process.argv.slice(2);
 const command = args[0];          // connect | list
 const targetEnv = args[1] || 'org';
@@ -49,9 +50,11 @@ function saveJson(filePath, data) {
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
 }
 
+
 // ----------------------------------------------------
-// PKCE
+// PKCE (Proof Key for Code Exchange)
 // ----------------------------------------------------
+
 function base64URLEncode(buffer) {
     return buffer
         .toString('base64')
@@ -73,9 +76,11 @@ function generateState() {
     return base64URLEncode(crypto.randomBytes(16));
 }
 
+
 // ----------------------------------------------------
 // URL DE AUTORIZAÇÃO
 // ----------------------------------------------------
+
 function buildAuthorizeUrl({ codeChallenge, state }) {
     const params = new URLSearchParams({
         response_type: 'code',
@@ -91,9 +96,11 @@ function buildAuthorizeUrl({ codeChallenge, state }) {
     return `${config.loginUrl}/services/oauth2/authorize?${params.toString()}`;
 }
 
+
 // ----------------------------------------------------
 // TROCA CODE -> TOKEN
 // ----------------------------------------------------
+
 async function exchangeCodeForToken({ code, codeVerifier }) {
     const params = new URLSearchParams({
         grant_type: 'authorization_code',
@@ -116,9 +123,11 @@ async function exchangeCodeForToken({ code, codeVerifier }) {
     return response.data;
 }
 
+
 // ----------------------------------------------------
 // LISTAR AMBIENTES
 // ----------------------------------------------------
+
 function handleListEnvs() {
     const envs = loadJson(envFile, []);
 
@@ -140,9 +149,11 @@ function handleListEnvs() {
     });
 }
 
+
 // ----------------------------------------------------
 // CONECTAR (CLI + CALLBACK)
 // ----------------------------------------------------
+
 async function handleConnect() {
     console.log('Iniciando conexão com Salesforce...');
     console.log(`Alias do ambiente: ${targetEnv}`);
@@ -261,9 +272,11 @@ async function handleConnect() {
     });
 }
 
+
 // ----------------------------------------------------
 // DISPATCH
 // ----------------------------------------------------
+
 (async () => {
     switch (command) {
         case 'connect':
