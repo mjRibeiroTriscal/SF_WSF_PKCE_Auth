@@ -50,6 +50,9 @@ function saveJson(filePath, data) {
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
 }
 
+// Pode ajustar depois se quiser outra heurística
+const MAX_TOKEN_AGE_MINUTES = 1; // 60;
+
 
 // ----------------------------------------------------
 // PKCE (Proof Key for Code Exchange)
@@ -121,6 +124,192 @@ async function exchangeCodeForToken({ code, codeVerifier }) {
     });
 
     return response.data;
+}
+
+
+// ----------------------------------------------------
+// TROCA REFRESH_TOKEN -> NOVO ACCESS_TOKEN [ NEW FEATURE: 20251210 ]
+// ----------------------------------------------------
+
+async function exchangeRefreshToken({ refreshToken }) {
+    const params = new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+        client_id: config.clientId
+    });
+
+    if (config.clientSecret) {
+        params.append('client_secret', config.clientSecret);
+    }
+
+    const tokenUrl = `${config.loginUrl}/services/oauth2/token`;
+
+    const response = await axios.post(tokenUrl, params.toString(), {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    });
+
+    return response.data;
+}
+
+
+
+// ----------------------------------------------------
+// [ NEW FEATURE: 20251210 ]
+// ----------------------------------------------------
+
+function diffInMinutes(a, b) {
+    const ms = a.getTime() - b.getTime();
+    return Math.abs(ms / 60000);
+}
+
+
+// ----------------------------------------------------
+// REFRESH TOKEN PARA UM AMBIENTE (ALIAS) [ NEW FEATURE: 20251210 ] - Não está em uso!!!
+// ----------------------------------------------------
+
+async function refreshAlias(alias) {
+    const envs = loadJson(envFile, []);
+    const index = envs.findIndex((env) => env.alias === alias);
+
+    if (index < 0) {
+        throw new Error(`Nenhum ambiente encontrado com alias "${alias}".`);
+    }
+
+    const env = envs[index];
+
+    if (!env.refreshToken) {
+        throw new Error(`O ambiente "${alias}" não possui refreshToken salvo.`);
+    }
+
+    const tokenResponse = await exchangeRefreshToken({
+        refreshToken: env.refreshToken
+    });
+
+    env.accessToken = tokenResponse.access_token;
+
+    // Se a org resolver enviar um novo refresh_token, atualiza também
+    if (tokenResponse.refresh_token) {
+        env.refreshToken = tokenResponse.refresh_token;
+    }
+
+    // Em geral instance_url não muda, mas por segurança:
+    if (tokenResponse.instance_url) {
+        env.instanceUrl = tokenResponse.instance_url;
+    }
+
+    env.connectedAt = new Date().toISOString();
+
+    envs[index] = env;
+    saveJson(envFile, envs);
+
+    return env;
+}
+
+
+// ----------------------------------------------------
+// REFRESH TOKEN PARA UMA ORG (por Org Id) [ NEW FEATURE: 20251210 ]
+// ----------------------------------------------------
+async function refreshByOrgId(orgId) {
+    const envs = loadJson(envFile, []);
+    const index = envs.findIndex((env) => env.orgId === orgId);
+
+    if (index < 0) {
+        throw new Error(`Nenhum ambiente encontrado com orgId "${orgId}".`);
+    }
+
+    const env = envs[index];
+
+    if (!env.refreshToken) {
+        throw new Error(`O ambiente com orgId "${orgId}" não possui refreshToken salvo.`);
+    }
+
+    const tokenResponse = await exchangeRefreshToken({
+        refreshToken: env.refreshToken
+    });
+
+    // Atualiza accessToken
+    env.accessToken = tokenResponse.access_token;
+
+    // Se vier um novo refresh_token, atualiza também
+    if (tokenResponse.refresh_token) {
+        env.refreshToken = tokenResponse.refresh_token;
+    }
+
+    // instance_url raramente muda, mas por segurança:
+    if (tokenResponse.instance_url) {
+        env.instanceUrl = tokenResponse.instance_url;
+    }
+
+    env.connectedAt = new Date().toISOString();
+
+    envs[index] = env;
+    saveJson(envFile, envs);
+
+    return env;
+}
+
+
+// ----------------------------------------------------
+// OBTÉM CONTEXTO DE AUTENTICAÇÃO (ORG ID + REFRESH INTELIGENTE) [ NEW FEATURE: 20251210 ]
+// ----------------------------------------------------
+async function getAuthContext(orgId) {
+    if (!orgId) {
+        throw new Error('Parâmetro orgId é obrigatório em getAuthContext(orgId).');
+    }
+
+    const envs = loadJson(envFile, []);
+    const env = envs.find((e) => e.orgId === orgId);
+
+    if (!env) {
+        throw new Error(`Nenhum ambiente encontrado com orgId "${orgId}".`);
+    }
+
+    // Se não tem refreshToken, apenas retorna o contexto atual
+    if (!env.refreshToken || !env.connectedAt) {
+        return {
+            orgId: env.orgId,
+            alias: env.alias || null,
+            instanceUrl: env.instanceUrl,
+            accessToken: env.accessToken,
+            username: env.username || null
+        };
+    }
+
+    // Verifica idade do token para decidir se tenta refresh antecipado
+    let needsRefresh = false;
+
+    try {
+        const connectedAtDate = new Date(env.connectedAt);
+        if (!isNaN(connectedAtDate.getTime())) {
+            const ageMinutes = diffInMinutes(new Date(), connectedAtDate);
+            if (ageMinutes > MAX_TOKEN_AGE_MINUTES) {
+                needsRefresh = true;
+            }
+        }
+    } catch (e) {
+        // Se der problema na data, não força refresh
+        needsRefresh = false;
+    }
+
+    let finalEnv = env;
+
+    if (needsRefresh) {
+        try {
+            finalEnv = await refreshByOrgId(orgId);
+        } catch (e) {
+            console.error(`Falha ao renovar token da org "${orgId}":`, e.message);
+            // Se falhar, segue com o token antigo (vai falhar na chamada SF e você trata lá)
+            finalEnv = env;
+        }
+    }
+
+    return {
+        orgId: finalEnv.orgId,
+        alias: finalEnv.alias || null,
+        instanceUrl: finalEnv.instanceUrl,
+        accessToken: finalEnv.accessToken,
+        username: finalEnv.username || null
+    };
 }
 
 
@@ -304,3 +493,12 @@ async function handleConnect() {
             break;
     }
 })();
+
+
+// ----------------------------------------------------
+// EXPORTS PARA USO EM OUTROS MÓDULOS
+// ----------------------------------------------------
+module.exports = {
+    getAuthContext,
+    refreshAlias
+};
