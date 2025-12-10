@@ -50,8 +50,8 @@ function saveJson(filePath, data) {
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
 }
 
-// Pode ajustar depois se quiser outra heurística
-const MAX_TOKEN_AGE_MINUTES = 1; // 60;
+// [ NEW FEATURE: 20251210 ]
+const MAX_TOKEN_AGE_MINUTES = 60;
 
 
 // ----------------------------------------------------
@@ -160,49 +160,6 @@ async function exchangeRefreshToken({ refreshToken }) {
 function diffInMinutes(a, b) {
     const ms = a.getTime() - b.getTime();
     return Math.abs(ms / 60000);
-}
-
-
-// ----------------------------------------------------
-// REFRESH TOKEN PARA UM AMBIENTE (ALIAS) [ NEW FEATURE: 20251210 ] - Não está em uso!!!
-// ----------------------------------------------------
-
-async function refreshAlias(alias) {
-    const envs = loadJson(envFile, []);
-    const index = envs.findIndex((env) => env.alias === alias);
-
-    if (index < 0) {
-        throw new Error(`Nenhum ambiente encontrado com alias "${alias}".`);
-    }
-
-    const env = envs[index];
-
-    if (!env.refreshToken) {
-        throw new Error(`O ambiente "${alias}" não possui refreshToken salvo.`);
-    }
-
-    const tokenResponse = await exchangeRefreshToken({
-        refreshToken: env.refreshToken
-    });
-
-    env.accessToken = tokenResponse.access_token;
-
-    // Se a org resolver enviar um novo refresh_token, atualiza também
-    if (tokenResponse.refresh_token) {
-        env.refreshToken = tokenResponse.refresh_token;
-    }
-
-    // Em geral instance_url não muda, mas por segurança:
-    if (tokenResponse.instance_url) {
-        env.instanceUrl = tokenResponse.instance_url;
-    }
-
-    env.connectedAt = new Date().toISOString();
-
-    envs[index] = env;
-    saveJson(envFile, envs);
-
-    return env;
 }
 
 
@@ -500,5 +457,5 @@ async function handleConnect() {
 // ----------------------------------------------------
 module.exports = {
     getAuthContext,
-    refreshAlias
+    refreshByOrgId
 };
